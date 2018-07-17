@@ -101,11 +101,13 @@ app.patch('/todos/:id', (req, res)=>{
 app.post('/users', (req, res)=>{
   var user = new User(_.pick(req.body, ['email', 'password']));
 
-  user.save().then((doc)=>{
-    res.send(doc);
-  }, (err)=>{
-    res.status(400).send(err);
-  })
+  user.save().then(()=>{
+    return user.generateAuthToken();
+  }).then((token)=>{
+    res.header('x-auth', token).send(user);
+  }).catch((e)=>{
+    res.status(400).send(e);
+  });
 });
 
 app.listen(port, ()=>{
