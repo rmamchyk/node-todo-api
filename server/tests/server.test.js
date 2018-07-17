@@ -232,3 +232,54 @@ describe('POST /users', ()=>{
       .end(done);
   });
 });
+
+describe('POST /users/login', ()=>{
+  it('should login user and return auth token', (done)=>{
+      var user = users[1];
+
+      request(app)
+        .post('/users/login')
+        .send({email: user.email, password: user.password})
+        .expect(200)
+        .expect((res)=>{
+          expect(res.body._id).toBe(user._id.toHexString());
+          expect(res.body.email).toBe(user.email);
+          expect(res.headers['x-auth']).toExist();
+        })
+        .end((err, res)=>{
+          if (err){
+            return done(err);
+          }
+
+          User.findById(user._id).then((userDoc)=>{
+            expect(userDoc.tokens[0]).toInclude({
+              access: 'auth', token: res.headers['x-auth']
+            });
+            done();
+          }).catch((e) => done(e));
+        });
+  });
+
+  it('should reject invalid logon', (done)=>{
+    var user = users[1];
+
+    request(app)
+      .post('/users/login')
+      .send({email: user.email, password: 'invalidPass'})
+      .expect(400)
+      .expect((res)=>{
+        expect(res.body).toEqual({});
+        expect(res.headers['x-auth']).toNotExist();
+      })
+      .end((err, res)=>{
+        if (err){
+          return done(err);
+        }
+
+        User.findById(user._id).then((userDoc)=>{
+          expect(userDoc.tokens.length).toBe(0);
+          done();
+        }).catch((e) => done(e));
+      });
+  });
+});
